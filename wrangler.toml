@@ -1,0 +1,42 @@
+name = "mail-free-d1"
+# name = "mail-exhibit"
+main = "src/server.js"
+compatibility_date = "2024-01-01"
+keep_vars=true
+
+# Turso/libSQL 连接（数据库 URL 放 vars，Token 请用 wrangler secret 设置）
+# 例如：
+# wrangler secret put TURSO_AUTH_TOKEN
+# wrangler secret put RESEND_API_KEY
+
+# 登录会话过期时间（单位：天，默认7天）
+# 环境变量
+[vars]
+# FORWARD_RULES="[{"prefix":"vip","email":"a@example.com"},{"prefix":"*","email":"example@qq.com"}]"
+# 走本机 IPv6 DB 网关时，填 http://[你的IPv6]:18080
+DB_API_URL="https://d1.4th.pp.ua"
+DB_API_TOKEN="SMMHoxwi8deP0ro9znfQNYzsOk-5ZkXpCyEEk5OSAOs"
+TURSO_DATABASE_URL=" "
+ADMIN_NAME="myemail"
+ADMIN_PASSWORD="myemail.336699"
+GUEST_PASSWORD="guest"
+JWT_TOKEN="fjiwaiv23164s4fdsfs6df6wfdx"
+JWT_TOKENGUEST_PASSWORD="dfsfsfxzcv"
+SESSION_EXPIRE_DAYS="365"
+MAIL_DOMAIN="keithleebr.indevs.in,eredinsta.indevs.in"
+RESEND_API_KEY=" "
+
+
+
+# 静态资源目录（Workers + Assets）
+[assets]
+directory = "public"
+# 让请求先进入 Worker，再决定是否回退到静态资源，避免首页变量注入失效
+run_worker_first = true
+# 显式指定绑定名，确保在 Worker 中通过 env.ASSETS 可用
+binding = "ASSETS"
+
+
+# wrangler.toml (wrangler v3.88.0^) 日志服务
+# [observability.logs]
+# enabled = true

@@ -1,0 +1,10 @@
+{
+  "name": "mail-free-d1",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@libsql/client": "^0.15.15",
+    "aws4fetch": "^1.0.20"
+  }
+}

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>登录 - 临时邮箱</title>
+    <style>.precheck-hide body{ visibility: hidden; }</style>
+    <script>
+      // 立即检查登录状态（在任何其他脚本之前）
+      (function(){
+        try{
+          var hasToken = document.cookie.split(';').some(function(c){ 
+            return c.trim().indexOf('iding-session=') === 0; 
+          });
+          
+          // 如果有cookie但是从其他页面跳转过来的，先验证有效性再跳转
+          // 避免无效cookie导致的循环跳转和页面闪现
+          if (hasToken && document.referrer) {
+            // 异步验证，不阻止页面渲染
+            (async function(){
+              try{
+                const controller = new AbortController();
+                const tid = setTimeout(function(){ try{ controller.abort(); }catch(_){ } }, 1500);
+                const r = await fetch('/api/session', { 
+                  method: 'GET', 
+                  headers: { 'Cache-Control': 'no-cache' },
+                  credentials: 'include',
+                  signal: controller.signal
+                });
+                clearTimeout(tid);
+                if (r && r.ok){
+                  location.replace('/');
+                } else {
+                  // cookie无效，清除它
+                  document.cookie = 'iding-session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                }
+              }catch(_){ 
+                // 验证失败，保持在登录页面
+              }
+            })();
+            return;
+          } else if (hasToken && !document.referrer) {
+            // 直接访问登录页且有cookie，立即重定向
+            location.replace('/');
+            return;
+          }
+          
+          // 没有cookie，做一次网络检查（可能cookie刚设置还没生效）
+          fetch('/api/session', { 
+            method: 'GET', 
+            headers: { 'Cache-Control': 'no-cache' },
+            credentials: 'include'
+          }).then(function(r){
+            if (r && r.ok){
+              location.replace('/');
+            }
+          }).catch(function(){ 
+            // 会话检查失败，保持在登录页面
+          });
+        }catch(_){ 
+          // 错误处理，保持在登录页面
+        }
+      })();
+    </script>
+    <script src="/js/auth-guard.js"></script>
+    <script>
+      // 已登录访问登录页时直接回首页；登出场景跳过检查
+      (function(){
+        try{ document.documentElement.classList.add('precheck-hide'); }catch(_){ }
+        try{
+          var u = new URL(location.href);
+          var fromLogout = (u.searchParams.get('from') === 'logout') || (sessionStorage.getItem('mf:just_logged_out') === '1');
+          if (fromLogout){
+            sessionStorage.removeItem('mf:just_logged_out');
+            document.documentElement.classList.remove('precheck-hide');
+            return;
+          }
+        }catch(_){ }
+        // Cookie检查已在页面顶部执行，这里跳过重复检查
+        // 2) 网络兜底，延长超时时间减少误判
+        try{
+          var controller = new AbortController();
+          var tid = setTimeout(function(){ try{ controller.abort(); }catch(_){ } }, 1500); // 从500ms延长到1500ms
+          fetch('/api/session', { 
+            headers: { 'Cache-Control': 'no-cache' }, 
+            signal: controller.signal,
+            credentials: 'include'
+          })
+            .then(function(r){
+              clearTimeout(tid);
+              if (r && r.ok){ location.replace('/'); return; }
+              document.documentElement.classList.remove('precheck-hide');
+            })
+            .catch(function(){ try{ document.documentElement.classList.remove('precheck-hide'); }catch(_){ } });
+        }catch(_){ try{ document.documentElement.classList.remove('precheck-hide'); }catch(_){ } }
+        // 最长 2s 兜底显示（从1s延长到2s）
+        setTimeout(function(){ try{ document.documentElement.classList.remove('precheck-hide'); }catch(_){ } }, 2000);
+      })();
+    </script>
+    
+    <script src="/js/mock.js"></script>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="shortcut icon" href="favicon.svg" type="image/svg+xml" />
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Open+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/login.css" />
+    <!-- 暗黑模式样式 -->
+    <link rel="stylesheet" href="/css/login_black.css" />
+    <!-- 主题切换支持 -->
+    <script src="/js/theme-toggle.js"></script>
+  </head>
+  <body>
+    <div class="bg"></div>
+    <div class="center">
+      <!-- 主题切换按钮 -->
+      <button id="theme-toggle" class="theme-toggle-login" aria-label="切换主题" title="切换主题">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <use href="/icons/sprites.svg#icon-moon"/>
+        </svg>
+      </button>
+      <div class="card">
+        <div class="logo">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L7.5 13.5m0 0l3 3L6 17l-1.5-3.5"/>
+          </svg>
+        </div>
+        <h1>登录到临时邮箱</h1>
+        <div id="err" class="err"></div>
+        <input id="username" class="input" type="text" placeholder="用户名/邮箱" aria-label="用户名或邮箱地址" />
+        <input id="pwd" class="input" type="password" placeholder="密码" aria-label="密码" />
+        <div style="font-size:12px;color:#64748b;margin-bottom:8px">
+          账号：guest，密码：guest，将进入观看模式。
+        </div>
+        <button id="login" class="btn">登录</button>
+      </div>
+    </div>
+    <div id="toast" class="toast"></div>
+    <script src="/js/toast-utils.js"></script>
+    <script src="/js/login.js"></script>
+    <script>
+      // 绑定登录页主题切换按钮
+      (function() {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        // 同步初始图标状态
+        if (window.freemailTheme) {
+          var t = window.freemailTheme.getTheme();
+          var icon = btn.querySelector('svg use');
+          if (icon) icon.setAttribute('href', '/icons/sprites.svg#icon-' + (t === 'dark' ? 'sun' : 'moon'));
+          btn.title = t === 'dark' ? '切换到明亮模式' : '切换到暗黑模式';
+        }
+        btn.addEventListener('click', function(e) {
+          e.preventDefault();
+          if (window.freemailTheme) window.freemailTheme.toggle();
+        });
+      })();
+    </script>
+  </body>
+  </html>
+

@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="precheck-hide">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>我的邮箱 - iDing's临时邮箱</title>
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <style>.precheck-hide body{ visibility: hidden !important; }</style>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="shortcut icon" href="/favicon.svg" type="image/svg+xml" />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Open+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/app.css" />
+  <link rel="stylesheet" href="/css/app-sidebar.css" />
+  <link rel="stylesheet" href="/css/app-mailbox.css" />
+  <link rel="stylesheet" href="/css/app-compose.css" />
+  <link rel="stylesheet" href="/css/app-modal.css" />
+  <link rel="stylesheet" href="/css/app-responsive.css" />
+  <link rel="stylesheet" href="/css/mailbox.css" />
+  <!-- 暗黑模式样式 -->
+  <link rel="stylesheet" href="/css/app_black.css" />
+  <link rel="stylesheet" href="/css/mailbox_black.css" />
+  <!-- 主题切换支持 -->
+  <script src="/js/theme-toggle.js"></script>
+  <script src="/js/auth-guard.js" defer></script>
+  <script>
+    // 访问邮箱页先做前端快速鉴权，仅允许 mailbox 角色
+    (function(){
+      fetch('/api/session', { headers: { 'Cache-Control': 'no-cache' } })
+        .then(r => r.ok ? r.json() : Promise.reject('unauth'))
+        .then(s => {
+          if (s && s.role === 'mailbox'){
+            try{ document.documentElement.classList.remove('precheck-hide'); }catch(_){ }
+            return;
+          }
+          // 其他角色：回首页
+          location.replace('/');
+        })
+        .catch(() => {
+          // 未登录：进入加载页做鉴权
+          if (window.AuthGuard) { window.AuthGuard.goLoading('/html/mailbox.html', '正在校验权限…'); }
+          else { location.replace('/templates/loading.html?redirect=%2Fhtml%2Fmailbox.html&status=' + encodeURIComponent('正在校验权限…')); }
+        });
+    })();
+  </script>
+</head>
+<body>
+<!-- SVG Icon Sprites -->
+<svg style="display:none">
+  <use href="/icons/sprites.svg#icon-mail"/>
+</svg>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <span class="brand-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <use href="/icons/sprites.svg#icon-mail"/>
+        </svg>
+      </span>
+      <span class="brand-text">iDing's临时邮箱</span>
+    </div>
+    <div id="role-badge" class="role-badge" title="邮箱用户">邮箱用户</div>
+    <div class="nav-actions">
+      <a id="repo" class="btn btn-ghost" href="https://github.com/idinging/freemail" target="_blank" rel="noopener noreferrer" title="GitHub 开源仓库">
+        <span class="btn-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <use href="/icons/sprites.svg#icon-github"/>
+          </svg>
+        </span>
+        <span class="btn-text">GitHub</span>
+      </a>
+      <button id="logout" class="btn btn-secondary" title="退出登录">
+        <span class="btn-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <use href="/icons/sprites.svg#icon-logout"/>
+          </svg>
+        </span>
+        <span class="btn-text">退出登录</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="container mailbox-container">
+  <div class="main mailbox-main">
+    <!-- 邮箱信息卡片 -->
+    <div class="card mailbox-info-card">
+      <h2>
+        <span class="card-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <use href="/icons/sprites.svg#icon-inbox"/>
+          </svg>
+        </span>
+        我的邮箱
+      </h2>
+      <div class="mailbox-info">
+        <div class="mailbox-display">
+          <span class="mailbox-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <use href="/icons/sprites.svg#icon-mail"/>
+            </svg>
+          </span>
+          <span id="current-mailbox" class="mailbox-address">加载中...</span>
+          <button id="copy-mailbox" class="btn btn-secondary btn-sm" title="复制邮箱地址" aria-label="复制邮箱地址">
+            <span class="btn-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <use href="/icons/sprites.svg#icon-copy"/>
+              </svg>
+            </span>
+            <span>复制</span>
+          </button>
+        <!-- 修改密码 -->
+          <button id="change-password" class="btn btn-ghost btn-sm" title="修改密码" aria-label="修改密码">
+            <span class="btn-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <use href="/icons/sprites.svg#icon-lock"/>
+              </svg>
+            </span>
+            <span>修改密码</span>
+          </button>
+        </div>
+        <div class="mailbox-toolbar">
+          <div class="toolbar-left">
+            <span class="chip chip-unread">未读 <span id="unread-count">0</span></span>
+            <span class="chip chip-total">全部 <span id="total-count">0</span></span>
+          </div>
+          <div class="toolbar-right">
+            <label class="toggle" title="开启后按间隔自动刷新">
+              <input id="auto-refresh" type="checkbox" />
+              <span>自动刷新</span>
+            </label>
+            <select id="refresh-interval" class="select select-sm" title="刷新间隔" aria-label="刷新间隔">
+              <option value="10">10秒</option>
+              <option value="30" selected>30秒</option>
+              <option value="60">60秒</option>
+            </select>
+            <input id="search-box" class="input input-sm" placeholder="搜索发件人/主题" aria-label="搜索发件人或主题" />
+            <button id="clear-filter" class="btn btn-ghost btn-sm" title="清空筛选">清空</button>
+            <button id="refresh-emails" class="btn btn-ghost" title="立即刷新" aria-label="刷新邮件列表">
+              <span class="btn-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <use href="/icons/sprites.svg#icon-refresh"/>
+                </svg>
+              </span>
+              <span>刷新</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 收件箱卡片 -->
+    <div class="card inbox-card">
+      <div class="listcard-header">
+        <h2 class="listcard-title">
+          <span class="card-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <use href="/icons/sprites.svg#icon-mail"/>
+            </svg>
+          </span>
+          <span>收件箱</span>
+          <span class="retention-hint">仅保留24小时</span>
+        </h2>
+        <div id="list-loading" class="loading-indicator no-pointer" role="status" aria-live="polite">
+          <div class="spinner"></div>
+          <span>加载中…</span>
+        </div>
+      </div>
+      <div class="list-viewport">
+        <div id="email-list" class="list"></div>
+        <div id="empty-state" class="empty-state" style="display:none">
+          <div class="empty-content">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.5">
+              <use href="/icons/sprites.svg#icon-inbox-empty"/>
+            </svg>
+            <span>暂无邮件</span>
+          </div>
+        </div>
+        <div id="list-pager" class="pager" style="display:none">
+          <button id="prev-page" class="btn btn-ghost btn-sm">上一页</button>
+          <span id="page-info" class="muted page-info-center"></span>
+          <button id="next-page" class="btn btn-ghost btn-sm">下一页</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="footer-slot"></div>
+
+<!-- 邮件详情模态框 -->
+<div class="modal" id="email-modal">
+  <div class="modal-card">
+    <div class="modal-header">
+      <div id="modal-subject">
+        <span class="modal-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <use href="/icons/sprites.svg#icon-mail"/>
+          </svg>
+        </span>
+        <span>邮件详情</span>
+      </div>
+      <button id="modal-close" class="close" aria-label="关闭">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <use href="/icons/sprites.svg#icon-x"/>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div id="modal-content"></div>
+    </div>
+  </div>
+</div>
+  <script src="/js/toast-utils.js"></script>
+  <script type="module" src="/js/mailbox.js"></script>
+<script>
+  // 动态加载公共 footer 模板
+  (async function(){
+    try{
+      const res = await fetch('/templates/footer.html', { cache: 'no-cache' });
+      const html = await res.text();
+      const slot = document.getElementById('footer-slot');
+      if (slot){
+        slot.outerHTML = html;
+        setTimeout(()=>{ const y=document.getElementById('footer-year'); if (y) y.textContent=new Date().getFullYear(); },0);
+      }
+    }catch(_){ }
+  })();
+</script>
+</body>
+</html>
+<!-- 确认删除模态框 -->
+<div class="modal" id="confirm-modal">
+  <div class="modal-card confirm-card">
+    <div class="modal-header confirm-header">
+      <div>
+        <span class="modal-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <use href="/icons/sprites.svg#icon-alert"/>
+          </svg>
+        </span>
+        <span>确认操作</span>
+      </div>
+      <button id="confirm-close" class="close" aria-label="关闭">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <use href="/icons/sprites.svg#icon-x"/>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body confirm-body">
+      <div id="confirm-message" class="confirm-message"></div>
+      <div class="confirm-actions">
+        <button id="confirm-cancel" class="btn btn-secondary">取消</button>
+        <button id="confirm-ok" class="btn btn-danger">确定</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 修改密码模态框 -->
+<div class="modal" id="password-modal">
+  <div class="modal-card">
+    <div class="modal-header">
+      <div>
+        <span class="modal-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <use href="/icons/sprites.svg#icon-lock"/>
+          </svg>
+        </span>
+        <span>修改密码</span>
+      </div>
+      <button id="password-close" class="close" aria-label="关闭">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <use href="/icons/sprites.svg#icon-x"/>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="password-hint">
+        <span class="hint-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <use href="/icons/sprites.svg#icon-alert"/>
+          </svg>
+        </span>
+        <span>修改密码后需要重新登录</span>
+      </div>
+      <form id="password-form">
+        <div class="form-group">
+          <label for="current-password">当前密码</label>
+          <input type="password" id="current-password" class="input" placeholder="请输入当前密码" required />
+        </div>
+        <div class="form-group">
+          <label for="new-password">新密码</label>
+          <input type="password" id="new-password" class="input" placeholder="请输入新密码（至少6位）" minlength="6" required />
+        </div>
+        <div class="form-group">
+          <label for="confirm-password">确认新密码</label>
+          <input type="password" id="confirm-password" class="input" placeholder="请再次输入新密码" minlength="6" required />
+        </div>
+        <div class="form-actions">
+          <button type="button" id="password-cancel" class="btn btn-secondary">取消</button>
+          <button type="submit" id="password-submit" class="btn btn-primary">修改密码</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
